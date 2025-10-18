@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <assert.h>
 #include <endian.h>
 #include <stdint.h>
@@ -51,6 +52,21 @@ struct Channels12Bit_4Chan {
         // uint16_t digital_switch_channel[]:10; // digital switch channel
     } PACKED;
 
+    struct PACKED VTXFrame {
+        uint8_t flags;
+        uint16_t frequency;         // frequency in Mhz
+        uint16_t power;              // power in mw, 0 == off
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+        uint8_t band : 4;               // A, B, E, AirWave, Race
+        uint8_t channel : 4;            // 1x-8x
+#elif __BYTE_ORDER == __BIG_ENDIAN
+        uint8_t channel : 4;            // 1x-8x
+        uint8_t band : 4;               // A, B, E, AirWave, Race
+#else
+#error "Unsupported-endian architecture"
+#endif
+        uint8_t spare[3];
+    };
 
 int main()
 {
@@ -83,6 +99,21 @@ int main()
         i,
         p[0],p[1],p[2],p[3],p[4],p[5],
         f.ch0, f.ch1, f.ch2, f.ch3);
+  }
+  printf("\n");
+
+  printf("Testing VTXFrame:\n");
+  for(int i = -1; i <= 72; ++i){
+    struct VTXFrame f;
+    memset(&f, 0x00, sizeof(f));
+    uint8_t * p = (uint8_t*)&f;
+    if(i >= 0 && i < 8 * (int)sizeof(f)) {
+      p[i / 8] |= 1 << (i % 8);
+    }
+    printf("Bit=%2i word=0x%02x%02x%02x%02x%02x%02x%02x%02x%02x flags=0x%04x freq=0x%04x power=0x%04x band=0x%04x channel=0x%04x s0=0x%02x s1=0x%02x s2=0x%02x\n",
+        i,
+        p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7],p[8],
+        f.flags, ntohs(f.frequency), ntohs(f.power), f.band, f.channel, f.spare[0], f.spare[1], f.spare[2]);
   }
   printf("\n");
 
